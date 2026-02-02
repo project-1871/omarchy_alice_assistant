@@ -82,6 +82,9 @@ pip install -r requirements.txt
 | Documents | `tools/documents.py` | PDF/image/text ingestion |
 | Web Search | `tools/websearch.py` | DuckDuckGo web search |
 | Weather | `tools/weather.py` | Current weather and forecasts (Open-Meteo) |
+| System | `tools/system.py` | CPU, RAM, disk usage stats |
+| Calculator | `tools/calculator.py` | Math, percentages, unit conversions |
+| Dictionary | `tools/dictionary.py` | Definitions and synonyms |
 | Claude | `tools/claude.py` | Hand off to Claude Code |
 
 ### Adding New Tools
@@ -195,6 +198,15 @@ python -c "from tools.calendar import CalendarTool; t = CalendarTool(); print(t.
 
 # Test weather
 python -c "from tools.weather import WeatherTool; t = WeatherTool(); print(t.execute('what is the weather'))"
+
+# Test system stats
+python -c "from tools.system import SystemTool; t = SystemTool(); print(t.execute('system stats'))"
+
+# Test calculator
+python -c "from tools.calculator import CalculatorTool; t = CalculatorTool(); print(t.execute('15 percent of 230'))"
+
+# Test dictionary
+python -c "from tools.dictionary import DictionaryTool; t = DictionaryTool(); print(t.execute('define ephemeral'))"
 
 # Run startup greeting
 python startup_greeting.py
