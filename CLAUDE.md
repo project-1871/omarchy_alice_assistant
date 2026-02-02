@@ -85,6 +85,7 @@ pip install -r requirements.txt
 | System | `tools/system.py` | CPU, RAM, disk usage stats |
 | Calculator | `tools/calculator.py` | Math, percentages, unit conversions |
 | Dictionary | `tools/dictionary.py` | Definitions and synonyms |
+| OS Help | `tools/oshelp.py` | Omarchy/Hyprland docs (offline) |
 | Claude | `tools/claude.py` | Hand off to Claude Code |
 
 ### Adding New Tools
@@ -141,7 +142,7 @@ Greeting includes:
 - `memory/context.json` - Current context, user name, preferences
 - `memory/notes.json` - All dictated notes
 - `memory/skills.json` - Learned preferences
-- `memory/docs/` - Ingested documents (PDFs, images, text)
+- `memory/docs/` - Ingested documents (51 docs: Omarchy manual + Hyprland configs)
 
 ### Learning
 - Preferences stored via "Remember that I..."
@@ -207,6 +208,9 @@ python -c "from tools.calculator import CalculatorTool; t = CalculatorTool(); pr
 
 # Test dictionary
 python -c "from tools.dictionary import DictionaryTool; t = DictionaryTool(); print(t.execute('define ephemeral'))"
+
+# Test OS help (offline Omarchy/Hyprland docs)
+python -c "from tools.oshelp import OSHelpTool; t = OSHelpTool(); print(t.execute('how do I switch workspaces'))"
 
 # Run startup greeting
 python startup_greeting.py
