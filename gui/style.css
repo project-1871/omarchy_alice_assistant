@@ -1,0 +1,169 @@
+/* Alice Assistant - Dark Theme */
+
+/* Main window */
+window {
+    background-color: #1e1e1e;
+}
+
+/* Chat area */
+.chat-container {
+    background-color: #252525;
+    border-radius: 8px;
+}
+
+/* Message styling */
+.message-row {
+    padding: 4px 8px;
+}
+
+.user-message {
+    background-color: #3b82f6;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 16px 16px 4px 16px;
+    margin: 4px 8px 4px 60px;
+}
+
+.assistant-message {
+    background-color: #404040;
+    color: #e0e0e0;
+    padding: 10px 14px;
+    border-radius: 16px 16px 16px 4px;
+    margin: 4px 60px 4px 8px;
+}
+
+.system-message {
+    background-color: #2d2d2d;
+    color: #888888;
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin: 4px 30px;
+    font-style: italic;
+}
+
+.thinking-message {
+    background-color: #1a1a2e;
+    color: #6b7280;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 4px 60px 4px 8px;
+    font-size: 12px;
+    font-style: italic;
+    border-left: 3px solid #4b5563;
+}
+
+/* Input area */
+.input-container {
+    background-color: #2d2d2d;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.input-entry {
+    background-color: #404040;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.input-entry:focus {
+    outline: 2px solid #3b82f6;
+}
+
+/* Buttons */
+.send-button {
+    background-color: #3b82f6;
+    color: white;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+
+.send-button:hover {
+    background-color: #2563eb;
+}
+
+.voice-button {
+    background-color: #404040;
+    color: white;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.voice-button:hover {
+    background-color: #525252;
+}
+
+.voice-button.recording {
+    background-color: #dc2626;
+}
+
+.tts-button {
+    background-color: #404040;
+    color: white;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.tts-button:hover {
+    background-color: #525252;
+}
+
+.tts-button.active {
+    background-color: #16a34a;
+}
+
+/* Header */
+.header-bar {
+    background-color: #2d2d2d;
+    padding: 8px 16px;
+}
+
+.title-label {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Toolbar */
+.toolbar {
+    background-color: #252525;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+.toolbar-button {
+    background-color: #404040;
+    color: #e0e0e0;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.toolbar-button:hover {
+    background-color: #525252;
+}
+
+.session-docs-label {
+    color: #16a34a;
+    font-size: 11px;
+    padding-left: 8px;
+}
+
+/* Scrollbar styling */
+scrollbar {
+    background-color: #252525;
+}
+
+scrollbar slider {
+    background-color: #525252;
+    border-radius: 4px;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+scrollbar slider:hover {
+    background-color: #666666;
+}

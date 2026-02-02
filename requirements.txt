@@ -1,0 +1,21 @@
+# Alice Assistant - Minimal Dependencies
+
+# GUI
+PyGObject>=3.42.0
+
+# LLM
+requests>=2.28.0
+
+# STT (Speech to Text)
+faster-whisper>=0.10.0
+
+# TTS - piper-tts (install via pipx or system package for better performance)
+# piper-tts
+
+# Optional: for date parsing in alarms
+python-dateutil>=2.8.0
+
+# Document ingestion
+pypdf>=3.0.0
+pytesseract>=0.3.10
+Pillow>=9.0.0
