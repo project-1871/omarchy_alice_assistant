@@ -38,6 +38,10 @@ Glenn specifically chose this voice. It's perfect. Don't touch it.
 - **Model**: `small` (can use tiny/base for speed)
 - **Language**: English
 
+### Weather
+- **API**: Open-Meteo (free, no API key)
+- **Location**: Madrid (40.4168, -3.7038) - edit in `config.py`
+
 ---
 
 ## Hardware
@@ -76,6 +80,8 @@ pip install -r requirements.txt
 | Apps | `tools/apps.py` | Launch applications |
 | Music | `tools/music.py` | Playerctl music control |
 | Documents | `tools/documents.py` | PDF/image/text ingestion |
+| Web Search | `tools/websearch.py` | DuckDuckGo web search |
+| Weather | `tools/weather.py` | Current weather and forecasts (Open-Meteo) |
 | Claude | `tools/claude.py` | Hand off to Claude Code |
 
 ### Adding New Tools
@@ -187,6 +193,9 @@ python -c "from tools.base import ToolRegistry; t = ToolRegistry(); print(t.list
 # Test calendar
 python -c "from tools.calendar import CalendarTool; t = CalendarTool(); print(t.execute('what is on my calendar today'))"
 
+# Test weather
+python -c "from tools.weather import WeatherTool; t = WeatherTool(); print(t.execute('what is the weather'))"
+
 # Run startup greeting
 python startup_greeting.py
 ```
@@ -226,7 +235,6 @@ Sign-off: *"So Glenn, what are you trying to fuck up today?"*
 
 ## Future Enhancements (Not Yet Implemented)
 - [ ] Code review tool (file/diff handling)
-- [ ] Weather integration
 - [ ] Email integration
 - [ ] Smart home control
 
