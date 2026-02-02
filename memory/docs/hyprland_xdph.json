@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_xdph",
+  "type": "text",
+  "content": "screencopy {\n    custom_picker_binary = hyprland-preview-share-picker\n    allow_token_by_default = true\n}\n",
+  "stored": "2026-02-02T08:41:44.974269"
+}

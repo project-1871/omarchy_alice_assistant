@@ -1,0 +1,6 @@
+{
+  "name": "omarchy_backgrounds",
+  "type": "pdf",
+  "content": "Backgrounds \nA\ue050\ue050 the backgrounds for Omarchy \ue050ive in ~/.config/omarchy/[theme]/backgrounds. If you\nwant to add an extra background image to, say, the nord theme, you just put the fi\ue050e in\n~/.config/omarchy/nord/backgrounds.\nYou can do this most easi\ue050y by going to Insta\ue050\ue050 > Sty\ue050e > Background in the Omarchy\nMenu. That'\ue050\ue050 bring up the fo\ue050der where the backgrounds for that theme is stored. Hit\nSuper + Shift + F to start another fi\ue050e manager, find your background, copy it over. Now\nit'\ue050\ue050 be inc\ue050uded in the cyc\ue050e of backgrounds you can move between using Super + Ctrl +\nSpace.\nYou can find a huge co\ue050\ue050ection of coo\ue050 curated backgrounds on https://github.com/\ndharmx/wa\ue050\ue050s.\nBackgrounds \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/89/backgrounds\n1 of 2 2/2/26, 1:26 AM\n\n---\n\nBackgrounds \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/89/backgrounds\n2 of 2 2/2/26, 1:26 AM",
+  "stored": "2026-02-02T08:41:42.507779"
+}

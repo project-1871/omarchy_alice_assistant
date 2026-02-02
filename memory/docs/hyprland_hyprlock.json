@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_hyprlock",
+  "type": "text",
+  "content": "source = ~/.config/omarchy/current/theme/hyprlock.conf\n \ngeneral {\n    ignore_empty_input = true\n}\n\nbackground {\n    monitor =\n    color = $color\n    path = ~/.config/omarchy/current/background\n    blur_passes = 3\n}\n\nanimations {\n    enabled = false\n}\n\ninput-field {\n    monitor =\n    size = 650, 100\n    position = 0, 0\n    halign = center\n    valign = center\n\n    inner_color = $inner_color\n    outer_color = $outer_color\n    outline_thickness = 4\n\n    font_family = JetBrainsMono Nerd Font\n    font_color = $font_color\n\n    placeholder_text = Enter Password\n    check_color = $check_color\n    fail_text = <i>$FAIL ($ATTEMPTS)</i>\n\n    rounding = 0\n    shadow_passes = 0\n    fade_on_empty = false\n}\n\nauth {\n    fingerprint:enabled = true\n}\n",
+  "stored": "2026-02-02T08:41:44.973297"
+}

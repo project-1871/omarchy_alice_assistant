@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_hyprsunset",
+  "type": "text",
+  "content": "# Makes hyprsunset do nothing to the screen by default\n# Without this, the default applies some tint to the monitor\nprofile {\n    time = 07:00\n    identity = true\n}\n\n# To enable auto switch to nightlight, set in your .config/hypr/autostart:\n# exec-once = uwsm app -- hyprsunset\n# and use the following:\n# profile {\n#     time = 20:00\n#     temperature = 4000\n# }\n",
+  "stored": "2026-02-02T08:41:44.973516"
+}

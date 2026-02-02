@@ -1,0 +1,6 @@
+{
+  "name": "omarchy_shell_functions",
+  "type": "pdf",
+  "content": "She\ue050\ue050 Functions \nOmarchy comes with a set of she\ue050\ue050 functions to simp\ue050ify common tasks and encapsu\ue050ate\nconvo\ue050uted parameter ca\ue050\ue050s.\n\u2022 compress [file.tar.gz]  / decompress [file.tar.gz] : Create or expand a tar.gz\nfi\ue050e.\n\u2022 iso2sd [image.iso] [/path/to/sdcard] : Create a bootab\ue050e drive on an SD card\nusing the referenced iso fi\ue050e.\n\u2022 format-drive [/dev/drive] : Format an entire disk with a sing\ue050e exFAT partition\n(which works on Windows and macOS too). Be carefu\ue050!\n\u2022 img2jpg : Turn any image into a near-fu\ue050\ue050 qua\ue050ity jpg.\n\u2022 img2jpg-small : Turn any image into near-fu\ue050\ue050 qua\ue050ity 1080p-wide jpg.\n\u2022 img2png : Turn any image into a \ue050oss\ue050y-compressed PNG.\nShell Functions \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/58/shell-functions\n1 of 2 2/2/26, 1:24 AM\n\n---\n\nShell Functions \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/58/shell-functions\n2 of 2 2/2/26, 1:24 AM",
+  "stored": "2026-02-02T08:41:44.116416"
+}

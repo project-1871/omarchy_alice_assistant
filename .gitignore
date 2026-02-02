@@ -3,4 +3,7 @@ __pycache__/
 venv/
 *.egg-info/
 .env
-memory/*.json
+memory/context.json
+memory/notes.json
+memory/skills.json
+memory/knowledge.json

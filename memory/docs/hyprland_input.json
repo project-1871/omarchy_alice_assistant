@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_input",
+  "type": "text",
+  "content": "# Control your input devices\n# See https://wiki.hypr.land/Configuring/Variables/#input\ninput {\n  # Use multiple keyboard layouts and switch between them with Left Alt + Right Alt\n  # kb_layout = us,dk,eu\n  kb_layout = us\n  kb_options = compose:caps # ,grp:alts_toggle\n\n  # Change speed of keyboard repeat\n  repeat_rate = 40\n  repeat_delay = 600\n\n  # Start with numlock on by default\n  numlock_by_default = true\n\n  # Increase sensitivity for mouse/trackpad (default: 0)\n  # sensitivity = 0.35\n\n  touchpad {\n    # Use natural (inverse) scrolling\n    # natural_scroll = true\n\n    # Use two-finger clicks for right-click instead of lower-right corner\n    # clickfinger_behavior = true\n\n    # Control the speed of your scrolling\n    scroll_factor = 0.4\n  }\n}\n\n# Scroll nicely in the terminal\nwindowrule = match:class (Alacritty|kitty), scroll_touchpad 1.5\nwindowrule = match:class com.mitchellh.ghostty, scroll_touchpad 0.2\n\n# Enable touchpad gestures for changing workspaces\n# See https://wiki.hyprland.org/Configuring/Gestures/\n# gesture = 3, horizontal, workspace\n",
+  "stored": "2026-02-02T08:41:44.973705"
+}

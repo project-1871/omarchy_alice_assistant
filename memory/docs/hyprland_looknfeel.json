@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_looknfeel",
+  "type": "text",
+  "content": "# Change the default Omarchy look'n'feel\n\n# https://wiki.hyprland.org/Configuring/Variables/#general\ngeneral {\n    # No gaps between windows or borders\n    # gaps_in = 0\n    # gaps_out = 0\n    # border_size = 0\n\n    # Use master layout instead of dwindle\n    # layout = master\n}\n\n# https://wiki.hyprland.org/Configuring/Variables/#decoration\ndecoration {\n    # Use round window corners\n    # rounding = 8\n}\n\n# https://wiki.hypr.land/Configuring/Dwindle-Layout/\ndwindle {\n    # Avoid overly wide single-window layouts on wide screens\n    # single_window_aspect_ratio = 1 1\n}\n",
+  "stored": "2026-02-02T08:41:44.973888"
+}

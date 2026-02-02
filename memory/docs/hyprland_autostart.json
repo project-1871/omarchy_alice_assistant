@@ -1,0 +1,6 @@
+{
+  "name": "hyprland_autostart",
+  "type": "text",
+  "content": "# Extra autostart processes\n# exec-once = uwsm-app -- my-service\n\n# Alice startup greeting (time of day, calendar events, etc.)\nexec-once = alice-greeting\n",
+  "stored": "2026-02-02T08:41:44.971951"
+}

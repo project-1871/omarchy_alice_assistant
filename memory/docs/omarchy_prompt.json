@@ -1,0 +1,6 @@
+{
+  "name": "omarchy_prompt",
+  "type": "pdf",
+  "content": "Prompt \nOmarchy ships with a minima\ue050 Starship prompt by defau\ue050t. That's how I \ue050ike to keep my\nprompt. I don't need to know the user, because it's a\ue050ways me, and I don't need to know\nthe time, because it's a\ue050ways at the top.\nIf you want more information or sty\ue050e, you can change the Starship.rs configuration in\n~/.config/starship.toml . There's a \ue050ot you can do. Just don't go overboard (or do go\noverboard, do whatever you want, it's your computer!\ue082\nPrompt \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/95/prompt\n1 of 2 2/2/26, 1:26 AM\n\n---\n\nPrompt \u00b7 The Omarchy Manual \u00b7 DHH https://learn.omacom.io/2/the-omarchy-manual/95/prompt\n2 of 2 2/2/26, 1:26 AM",
+  "stored": "2026-02-02T08:41:44.033848"
+}
