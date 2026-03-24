@@ -1,0 +1,36 @@
+{
+  "lessons_completed": [
+    {
+      "number": 1,
+      "tool": "Wappalyzer",
+      "completed_date": "2026-03-17T19:01:26.240597",
+      "quiz_score": 1,
+      "quiz_total": 3
+    },
+    {
+      "number": 2,
+      "tool": "whatweb",
+      "completed_date": "2026-03-20T00:37:46.072903",
+      "quiz_score": 0,
+      "quiz_total": 0
+    }
+  ],
+  "current_lesson": null,
+  "weak_topics": {},
+  "session_notes": [
+    {
+      "lesson_number": 1,
+      "tool": "Wappalyzer",
+      "date": "2026-03-17T19:01:26.240617",
+      "note": "Quiz: 1/3. Questions asked: 4."
+    },
+    {
+      "lesson_number": 2,
+      "tool": "whatweb",
+      "date": "2026-03-20T00:37:46.072934",
+      "note": "Asked 3 question(s). Quiz: 0/0."
+    }
+  ],
+  "total_sessions": 2,
+  "last_session": "2026-03-20T00:37:46.072939"
+}

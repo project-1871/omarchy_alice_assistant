@@ -1,0 +1,5 @@
+2026-02-24 00:24:28,175 audio=28.52s | infer=7.28s | RTF=0.26 | lang=en(98%) | words=27 | model=small/cpu
+2026-02-24 00:26:28,557 audio=6.10s | infer=6.56s | RTF=1.08 | lang=en(97%) | words=6 | model=small/cpu
+2026-02-24 00:27:45,600 audio=13.46s | infer=6.63s | RTF=0.49 | lang=en(98%) | words=14 | model=small/cpu
+2026-02-24 00:28:48,570 audio=7.23s | infer=6.42s | RTF=0.89 | lang=en(92%) | words=7 | model=small/cpu
+2026-02-24 00:31:09,750 audio=7.38s | infer=6.56s | RTF=0.89 | lang=en(92%) | words=8 | model=small/cpu

@@ -2,18 +2,34 @@
 
 import re
 import math
-from tools.base import Tool
+from tools.base import Tool, _expand_contractions
 
 
 class CalculatorTool(Tool):
     name = "calculator"
     description = "Perform calculations and unit conversions"
+    _QUESTION_STARTERS = ["what is", "what's", "how much is"]
+    _MATH_KEYWORDS = [
+        "plus", "minus", "times", "divided", "percent", "%",
+        "square root", "sqrt", "squared", "cubed",
+        "to celsius", "to fahrenheit", "to kilometers", "to miles",
+        "to kg", "to pounds",
+    ]
     triggers = [
-        "calculate", "what's", "what is", "how much is",
+        "calculate", "convert",
         "plus", "minus", "times", "divided", "percent",
-        "convert", "to celsius", "to fahrenheit", "to kilometers",
+        "to celsius", "to fahrenheit", "to kilometers",
         "to miles", "to kg", "to pounds", "square root", "sqrt"
     ]
+
+    def can_handle(self, query: str) -> bool:
+        q = _expand_contractions(query.lower())
+        # "what is/what's X times Y" — question starter + math keyword
+        if any(s in q for s in ["what is", "how much is"]):
+            if any(m in q for m in self._MATH_KEYWORDS):
+                return True
+        # Standard trigger matching
+        return super().can_handle(query)
 
     # Unit conversions
     CONVERSIONS = {

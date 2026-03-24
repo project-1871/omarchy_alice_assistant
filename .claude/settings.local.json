@@ -28,7 +28,11 @@
       "Bash(chmod:*)",
       "Bash(/home/glenn/.local/share/omarchy/bin/omarchy-voxtype-status)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Alice voice assistant\n\nPersonal voice assistant with Ollama LLM, Piper TTS, and faster-whisper STT.\n\nFeatures:\n- Voice interaction via GTK GUI \\(Super+A\\)\n- Tools: notes, alarms, calendar, apps, music, documents, web search, weather\n- Memory system for preferences and context\n- Alba British voice \\(en_GB-alba-medium\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth:*)"
     ]
   }
 }

@@ -7,25 +7,30 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tools.base import Tool
+from tools.base import Tool, _expand_contractions
 
 
 class CalendarTool(Tool):
-    """Manage calendar events via calcurse."""
+    """Manage calendar events and to-do items via calcurse."""
 
     name = "calendar"
-    description = "Add and view calendar events"
+    description = "Add and view calendar events and to-do items"
     triggers = [
         "add to calendar", "put on calendar", "calendar event",
         "schedule", "add event", "add appointment",
         "remind me on", "reminder on", "remind me about",
         "what's on my calendar", "show calendar", "calendar for",
-        "what do i have", "any events", "my schedule"
+        "what do i have", "any events", "my schedule",
+        "add to my todo", "add to my to-do", "add to my to do",
+        "todo list", "to-do list", "to do list",
+        "what's on my todo", "show my todos", "show my to-dos",
+        "my todos", "my to-dos"
     ]
 
     def __init__(self):
         self.calcurse_dir = Path.home() / ".local/share/calcurse"
         self.apts_file = self.calcurse_dir / "apts"
+        self.todo_file = self.calcurse_dir / "todo"
         self._ensure_calcurse_dir()
 
     def _ensure_calcurse_dir(self):
@@ -33,9 +38,22 @@ class CalendarTool(Tool):
         self.calcurse_dir.mkdir(parents=True, exist_ok=True)
         if not self.apts_file.exists():
             self.apts_file.touch()
+        if not self.todo_file.exists():
+            self.todo_file.touch()
 
     def execute(self, query: str, **kwargs) -> str:
-        query_lower = query.lower()
+        query_lower = _expand_contractions(query.lower())
+
+        # Check for todo requests
+        todo_keywords = ["todo", "to-do", "to do list"]
+        is_todo = any(k in query_lower for k in todo_keywords)
+
+        if is_todo:
+            add_triggers = ["add", "put", "create"]
+            is_add = any(query_lower.startswith(t) for t in add_triggers) or "add to" in query_lower
+            if is_add:
+                return self._add_todo(query)
+            return self._list_todos()
 
         # Check if listing/viewing events (only if clearly a query, not an add request)
         add_triggers = ["add", "put", "schedule", "set", "create", "remind"]
@@ -48,7 +66,7 @@ class CalendarTool(Tool):
         # Otherwise, add event
         return self._add_event(query)
 
-    def _parse_date(self, query: str) -> datetime | None:
+    def _parse_date(self, query: str, use_current_year: bool = False) -> datetime | None:
         """Parse date from natural language."""
         query_lower = query.lower()
         today = datetime.now()
@@ -117,8 +135,8 @@ class CalendarTool(Tool):
 
                     result = today.replace(month=month, day=day, year=year,
                                           hour=0, minute=0, second=0, microsecond=0)
-                    # If date is in the past, assume next year
-                    if result < today:
+                    # If date is in the past and not a yearly event, assume next year
+                    if result < today and not use_current_year:
                         result = result.replace(year=result.year + 1)
                     return result
                 except (ValueError, KeyError):
@@ -192,12 +210,22 @@ class CalendarTool(Tool):
 
     def _add_event(self, query: str) -> str:
         """Add an event to calcurse."""
-        date = self._parse_date(query)
+        query_lower = query.lower()
+
+        # Detect yearly recurring intent
+        yearly_keywords = ["every year", "yearly", "annual", "annually", "each year",
+                           "birthday", "anniversary"]
+        is_yearly = any(kw in query_lower for kw in yearly_keywords)
+
+        date = self._parse_date(query, use_current_year=is_yearly)
         if not date:
             return "I couldn't understand the date. Try something like 'February 10th' or 'next Tuesday'."
 
         time = self._parse_time(query)
         description = self._extract_event_description(query)
+
+        if is_yearly:
+            description = f"YEARLY:{description}"
 
         # Format for calcurse
         date_str = date.strftime("%m/%d/%Y")
@@ -205,23 +233,22 @@ class CalendarTool(Tool):
         if time:
             hour, minute = time
             start_time = f"{hour:02d}:{minute:02d}"
-            # Default 1 hour duration
             end_hour = hour + 1
             end_time = f"{end_hour:02d}:{minute:02d}"
             entry = f"{date_str} @ {start_time} -> {date_str} @ {end_time} |{description}\n"
             time_display = f" at {hour:02d}:{minute:02d}"
         else:
-            # All-day event
             entry = f"{date_str} [1] |{description}\n"
             time_display = ""
 
-        # Append to calcurse appointments file
         try:
             with open(self.apts_file, 'a') as f:
                 f.write(entry)
 
+            display_desc = description[7:] if description.startswith('YEARLY:') else description
             date_display = date.strftime("%A, %B %d")
-            return f"Added to calendar: \"{description}\" on {date_display}{time_display}"
+            recur = " (repeats every year)" if is_yearly else ""
+            return f"Added to calendar: \"{display_desc}\" on {date_display}{time_display}{recur}"
 
         except Exception as e:
             return f"Couldn't add event: {e}"
@@ -245,18 +272,31 @@ class CalendarTool(Tool):
         target_str = target_date.strftime("%m/%d/%Y")
 
         try:
+            target_md = target_date.strftime("%m/%d")
+
             with open(self.apts_file, 'r') as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
 
-                    # Check if event is on target date
-                    if line.startswith(target_str):
-                        # Extract description
+                    date_match = re.match(r'(\d{2}/\d{2})/\d{4}', line)
+                    if not date_match:
+                        continue
+                    line_md = date_match.group(1)
+
+                    is_target = line.startswith(target_str)
+                    is_yearly_target = False
+                    if not is_target and line_md == target_md and '|' in line:
+                        raw_desc = line.split('|', 1)[1]
+                        if raw_desc.startswith('YEARLY:'):
+                            is_yearly_target = True
+
+                    if is_target or is_yearly_target:
                         if '|' in line:
                             desc = line.split('|', 1)[1]
-                            # Extract time if present
+                            if desc.startswith('YEARLY:'):
+                                desc = desc[7:]
                             time_match = re.search(r'@ (\d{2}:\d{2})', line)
                             if time_match:
                                 events.append(f"{time_match.group(1)} - {desc}")
@@ -271,3 +311,63 @@ class CalendarTool(Tool):
 
         except Exception as e:
             return f"Couldn't read calendar: {e}"
+
+    def _add_todo(self, query: str) -> str:
+        """Add an item to the todo list."""
+        # Strip trigger phrases to get the description
+        desc = query
+        remove_patterns = [
+            r'^(add|put|create)\s+(a\s+)?(to[\s-]?do|task|item)?\s*(to|on)?\s*(my\s+)?(to[\s-]?do\s*list?)?\s*:?\s*',
+        ]
+        for pattern in remove_patterns:
+            desc = re.sub(pattern, '', desc, flags=re.IGNORECASE)
+        desc = desc.strip()
+        if not desc:
+            return "What should I add to your to-do list?"
+
+        # Capitalize first letter
+        desc = desc[0].upper() + desc[1:]
+
+        new_line = f"[5] {desc}"
+        try:
+            with open(self.todo_file, 'a') as f:
+                f.write(new_line + '\n')
+            return f"Added to your to-do list: \"{desc}\""
+        except Exception as e:
+            return f"Couldn't add to-do item: {e}"
+
+    def _list_todos(self) -> str:
+        """List all pending todo items."""
+        if not self.todo_file.exists():
+            return "Your to-do list is empty."
+
+        pending = []
+        done = []
+        try:
+            for line in self.todo_file.read_text().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                match = re.match(r'\[(-?\d+)\]\s*(.*)', line)
+                if match:
+                    priority = int(match.group(1))
+                    desc = match.group(2).strip()
+                    if priority < 0:
+                        done.append(desc)
+                    else:
+                        pending.append(desc)
+        except Exception as e:
+            return f"Couldn't read to-do list: {e}"
+
+        if not pending and not done:
+            return "Your to-do list is empty."
+
+        result = ""
+        if pending:
+            result += f"You have {len(pending)} pending item{'s' if len(pending) != 1 else ''}:\n"
+            for item in pending:
+                result += f"  - {item}\n"
+        if done:
+            result += f"\n{len(done)} completed item{'s' if len(done) != 1 else ''}."
+
+        return result.strip()

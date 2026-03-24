@@ -6,15 +6,17 @@ No always-listening BS. No slow pipeline. Just a snappy assistant you call when 
 
 ## Features
 
-- **Voice Input/Output** - Talk to Alice, she talks back (British female voice - Alba)
-- **Uncensored AI** - Uses dolphin-phi:2.7b, no content restrictions
+- **Voice Input/Output** - Talk to Alice, she talks back (KittenTTS expressive voice)
+- **Uncensored AI** - Uses dolphin-llama3:8b via Ollama (Vulkan GPU), no content restrictions
+- **Teacher Mode** - Alice teaches your 31 web hacking lessons interactively (section by section, Q&A, quiz, persistent student profile)
 - **Calendar Integration** - Manages events via calcurse
 - **Note Taking** - Dictate notes, search them later
 - **Alarms & Timers** - Natural language time setting
 - **App Launcher** - "Open Firefox", "Launch Spotify"
-- **Music Control** - Play, pause, skip, volume control
+- **Music Control** - YouTube music via yt-dlp
 - **Document Memory** - Ingest PDFs, images (OCR), text files
-- **Learning** - Remembers your preferences
+- **Web Search** - DuckDuckGo search with answer extraction
+- **Learning** - Remembers your preferences and weak topics
 - **Claude Code Handoff** - Complex coding tasks go to Claude
 
 ## Installation
@@ -113,6 +115,15 @@ cd alice-assistant
 - "Hey Claude, check this code for me"
 - "Build me a Python script that..."
 
+**Teacher Mode:**
+- Click **"Start Lesson"** (purple button in toolbar) → pick a lesson from the dialog
+- Today's scheduled lesson is highlighted automatically
+- Say **"next"** or **"ready"** to advance through sections
+- Ask any question mid-lesson — Alice answers; auto web-searches if unsure
+- 3-question quiz at the end to test what you learned
+- Lesson results saved to `memory/lesson_progress.json` (weak topics tracked across sessions)
+- Click **"End Lesson"** (red) to exit teacher mode anytime
+
 **System:**
 - "Reload tools" - Refresh available tools after adding new ones
 
@@ -183,18 +194,21 @@ alice-assistant/
 │   ├── alarms.py           # Alarms/timers
 │   ├── calendar.py         # Calendar (calcurse)
 │   ├── apps.py             # App launcher
-│   ├── music.py            # Music control
+│   ├── music.py            # Music control (YouTube via yt-dlp)
 │   ├── documents.py        # Document ingestion
+│   ├── websearch.py        # DuckDuckGo web search
+│   ├── teacher.py          # Teacher mode engine (lesson state, prompts, progress)
 │   └── claude.py           # Claude Code handoff
 │
 ├── memory/
 │   ├── context.json        # Current context
 │   ├── notes.json          # All notes
 │   ├── skills.json         # Learned preferences
+│   ├── knowledge.json      # Permanent knowledge base
+│   ├── lesson_progress.json # Hacking lesson progress (completions, weak topics, scores)
 │   └── docs/               # Ingested documents
 │
-└── voices/
-    └── en_GB-alba-medium.onnx  # THE voice (never change!)
+└── voices/                 # (reserved)
 ```
 
 ## Configuration
