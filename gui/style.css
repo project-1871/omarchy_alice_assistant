@@ -517,3 +517,48 @@ scrollbar slider:hover {
     border-color: #3b82f6;
     box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
 }
+
+/* ── Spam button ── */
+.spam-button {
+    background-color: #7c2d12;
+    color: #fed7aa;
+    font-weight: bold;
+    border-radius: 8px;
+    padding: 4px 10px;
+}
+
+.spam-button:hover {
+    background-color: #9a3412;
+}
+
+.spam-button-active {
+    background-color: #dc2626;
+    color: #fff;
+    font-weight: bold;
+}
+
+.spam-step-label {
+    color: #f59e0b;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.spam-combo {
+    font-size: 12px;
+}
+
+.spam-spin {
+    font-size: 13px;
+}
+
+.spam-start-button {
+    background-color: #16a34a;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 8px;
+    padding: 4px 12px;
+}
+
+.spam-start-button:hover {
+    background-color: #15803d;
+}

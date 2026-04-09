@@ -1074,6 +1074,12 @@ class MainWindow(Gtk.ApplicationWindow):
         import_btn.connect('clicked', self._on_import_google)
         toolbar.append(import_btn)
 
+        self._spam_btn = Gtk.Button(label="💥 Spam")
+        self._spam_btn.add_css_class('spam-button')
+        self._spam_btn.set_tooltip_text("Send repeated themed messages to a contact")
+        self._spam_btn.connect('clicked', self._on_spam_button)
+        toolbar.append(self._spam_btn)
+
         page.append(toolbar)
 
         # ── Contacts grid ─────────────────────────
@@ -1345,6 +1351,156 @@ class MainWindow(Gtk.ApplicationWindow):
 
         dialog.connect('response', on_response)
         dialog.show()
+
+    def _on_spam_button(self, widget):
+        """Open the spam walkthrough dialog."""
+        self._spam_session = getattr(self, '_spam_session', None)
+        if self._spam_session:
+            # Already running — stop it
+            self._spam_session.stop()
+            self._spam_session = None
+            self._spam_btn.set_label("💥 Spam")
+            self._spam_btn.remove_css_class('spam-button-active')
+            self._msg_status_label.set_label("⛔ Spam stopped.")
+            return
+
+        from tools.contacts import load as load_contacts_data
+        from tools.spam import load_messages, list_themes
+
+        win = Gtk.Window(title="💥 Spam Setup")
+        win.set_transient_for(self)
+        win.set_modal(True)
+        win.set_default_size(360, 380)
+        win.set_resizable(False)
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        win.set_child(outer)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box.set_margin_top(16)
+        box.set_margin_bottom(16)
+        box.set_margin_start(16)
+        box.set_margin_end(16)
+        outer.append(box)
+
+        # ── Step 1: Contact ──
+        step1 = Gtk.Label(label="① Who to spam?")
+        step1.add_css_class('spam-step-label')
+        step1.set_xalign(0)
+        box.append(step1)
+
+        contacts_data = load_contacts_data().get("contacts", [])
+        contact_names = [f"{c.get('emoji','👤')} {c['name']}" for c in contacts_data]
+        contact_combo = Gtk.DropDown.new_from_strings(contact_names)
+        contact_combo.add_css_class('spam-combo')
+
+        # Pre-select currently selected contact
+        if self._selected_contact:
+            sel_name = self._selected_contact.get("name", "")
+            for i, c in enumerate(contacts_data):
+                if c["name"] == sel_name:
+                    contact_combo.set_selected(i)
+                    break
+
+        box.append(contact_combo)
+
+        # ── Step 2: Theme ──
+        step2 = Gtk.Label(label="② Message theme / context")
+        step2.add_css_class('spam-step-label')
+        step2.set_xalign(0)
+        box.append(step2)
+
+        themes = list_themes()
+        theme_combo = Gtk.DropDown.new_from_strings(themes)
+        theme_combo.add_css_class('spam-combo')
+        box.append(theme_combo)
+
+        custom_entry = Gtk.Entry()
+        custom_entry.set_placeholder_text("Or type custom theme keywords...")
+        custom_entry.add_css_class('compose-entry')
+        box.append(custom_entry)
+
+        # ── Step 3: Count ──
+        step3 = Gtk.Label(label="③ How many messages?")
+        step3.add_css_class('spam-step-label')
+        step3.set_xalign(0)
+        box.append(step3)
+
+        count_adj = Gtk.Adjustment(value=5, lower=1, upper=100, step_increment=1)
+        count_spin = Gtk.SpinButton(adjustment=count_adj, climb_rate=1, digits=0)
+        count_spin.add_css_class('spam-spin')
+        box.append(count_spin)
+
+        # ── Step 4: Interval ──
+        step4 = Gtk.Label(label="④ Seconds between each message")
+        step4.add_css_class('spam-step-label')
+        step4.set_xalign(0)
+        box.append(step4)
+
+        interval_adj = Gtk.Adjustment(value=60, lower=10, upper=300, step_increment=5)
+        interval_spin = Gtk.SpinButton(adjustment=interval_adj, climb_rate=1, digits=0)
+        interval_spin.add_css_class('spam-spin')
+        box.append(interval_spin)
+
+        # ── Buttons ──
+        btn_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        btn_row.set_halign(Gtk.Align.END)
+        box.append(btn_row)
+
+        cancel_btn = Gtk.Button(label="Cancel")
+        cancel_btn.connect('clicked', lambda _: win.destroy())
+        btn_row.append(cancel_btn)
+
+        start_btn = Gtk.Button(label="🚀 Start Spam")
+        start_btn.add_css_class('spam-start-button')
+        btn_row.append(start_btn)
+
+        def on_start(_):
+            from tools.spam import SpamSession, load_messages
+
+            idx      = contact_combo.get_selected()
+            contact  = contacts_data[idx] if idx < len(contacts_data) else None
+            if not contact:
+                return
+
+            custom = custom_entry.get_text().strip()
+            theme_idx = theme_combo.get_selected()
+            theme = custom if custom else (themes[theme_idx] if theme_idx < len(themes) else None)
+
+            msgs     = load_messages(theme)
+            count    = int(count_spin.get_value())
+            interval = int(interval_spin.get_value())
+            chat_id  = f"{contact['whatsapp']}@c.us"
+            name     = contact['name']
+
+            win.destroy()
+
+            def on_sent(sent, total, msg):
+                GLib.idle_add(lambda: self._msg_status_label.set_label(
+                    f"💥 Spam: {sent}/{total} sent to {name}"
+                ))
+
+            def on_done(sent):
+                GLib.idle_add(self._spam_done, sent, name)
+
+            session = SpamSession(chat_id, msgs, count, interval,
+                                  on_sent=on_sent, on_done=on_done)
+            self._spam_session = session
+            self._spam_btn.set_label("⛔ Stop")
+            self._spam_btn.add_css_class('spam-button-active')
+            self._msg_status_label.set_label(f"💥 Spam started → {name} ({count} msgs, {interval}s apart)")
+            session.start()
+
+        start_btn.connect('clicked', on_start)
+        win.present()
+
+    def _spam_done(self, sent: int, name: str):
+        """Called when spam session finishes."""
+        self._spam_session = None
+        self._spam_btn.set_label("💥 Spam")
+        self._spam_btn.remove_css_class('spam-button-active')
+        self._msg_status_label.set_label(f"✅ Spam done — {sent} messages sent to {name}")
+        return False
 
     # ──────────────────────────────────────────────
     # Chat functionality (unchanged)
