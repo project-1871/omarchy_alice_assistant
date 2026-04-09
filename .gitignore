@@ -3,7 +3,22 @@ __pycache__/
 venv/
 *.egg-info/
 .env
+
+# Personal data — never commit
 memory/context.json
 memory/notes.json
 memory/skills.json
 memory/knowledge.json
+memory/chat_history.json
+memory/alarm_log.json
+memory/chroma/
+
+# Large model files — download separately
+*.onnx
+*.bin
+
+# Logs
+*.log
+
+# Stray version files
+=*

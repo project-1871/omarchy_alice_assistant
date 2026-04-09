@@ -36,6 +36,7 @@ class Memory:
         self.notes = self._load_json(config.NOTES_FILE, {'notes': []})
         self.skills = self._load_json(config.SKILLS_FILE, {'learned': []})
         self.knowledge = self._load_json(config.KNOWLEDGE_FILE, {'entries': []})
+        self.alarms = self._load_json(config.ALARM_LOG_FILE, {'alarms': []})
 
         # Session-only temporary memory (cleared on restart)
         self.session_docs = {}  # {name: {content, type, file_path}}
@@ -232,7 +233,7 @@ class Memory:
 
     # Document storage
     def store_doc(self, name: str, content: str, doc_type: str = 'text'):
-        """Store a document in memory."""
+        """Store a document in memory and index it in RAG."""
         docs_dir = os.path.join(config.MEMORY_DIR, 'docs')
         os.makedirs(docs_dir, exist_ok=True)
 
@@ -245,6 +246,10 @@ class Memory:
         }
         with open(doc_path, 'w') as f:
             json.dump(doc, f, indent=2)
+
+        # Index into RAG if engine is attached
+        if hasattr(self, '_rag') and self._rag is not None:
+            self._rag.index_document(name, content, doc_type)
 
     def get_doc(self, name: str) -> dict | None:
         """Retrieve a stored document."""
@@ -364,3 +369,118 @@ class Memory:
                 })
 
         return results
+
+    # ── Alarm log methods ──────────────────────────────────────────────────────
+
+    def add_alarm(self, alarm_type: str, scheduled_for: datetime,
+                  duration_seconds: int | None, message: str,
+                  systemd_unit: str | None = None) -> int:
+        """Log a new alarm/timer. Returns the alarm ID."""
+        alarm_id = len(self.alarms['alarms']) + 1
+        entry = {
+            'id': alarm_id,
+            'type': alarm_type,               # 'alarm' or 'timer'
+            'created_at': datetime.now().isoformat(),
+            'scheduled_for': scheduled_for.isoformat(),
+            'duration_seconds': duration_seconds,
+            'message': message,
+            'systemd_unit': systemd_unit,
+            'status': 'scheduled',
+            'cancelled_at': None,
+        }
+        self.alarms['alarms'].append(entry)
+        self._save_json(config.ALARM_LOG_FILE, self.alarms)
+        return alarm_id
+
+    def update_alarm_unit(self, alarm_id: int, systemd_unit: str):
+        """Set the systemd unit name for an alarm after it has been created."""
+        for alarm in self.alarms['alarms']:
+            if alarm['id'] == alarm_id:
+                alarm['systemd_unit'] = systemd_unit
+                self._save_json(config.ALARM_LOG_FILE, self.alarms)
+                return
+
+    def get_active_alarms(self) -> list[dict]:
+        """Return all alarms with status='scheduled'."""
+        return [a for a in self.alarms['alarms'] if a['status'] == 'scheduled']
+
+    def mark_alarm_fired(self, alarm_id: int):
+        """Mark an alarm as fired."""
+        for alarm in self.alarms['alarms']:
+            if alarm['id'] == alarm_id:
+                alarm['status'] = 'fired'
+                self._save_json(config.ALARM_LOG_FILE, self.alarms)
+                return
+
+    def cancel_alarm(self, alarm_id: int):
+        """Mark an alarm as cancelled."""
+        for alarm in self.alarms['alarms']:
+            if alarm['id'] == alarm_id:
+                alarm['status'] = 'cancelled'
+                alarm['cancelled_at'] = datetime.now().isoformat()
+                self._save_json(config.ALARM_LOG_FILE, self.alarms)
+                return
+
+    # ── Chat history log ──────────────────────────────────────────────────────
+
+    def _ensure_chat_history(self):
+        if not hasattr(self, '_chat_history'):
+            self._chat_history = self._load_json(config.CHAT_HISTORY_FILE, {'messages': []})
+
+    def log_chat(self, role: str, text: str):
+        """Append a message to the persistent chat log. role = 'user' or 'alice'."""
+        self._ensure_chat_history()
+        self._chat_history['messages'].append({
+            'ts': datetime.now().isoformat(),
+            'role': role,
+            'text': text,
+        })
+        self._save_json(config.CHAT_HISTORY_FILE, self._chat_history)
+
+    def get_chat_history(self, limit: int = 20, date_str: str = None) -> list[dict]:
+        """Return recent chat messages, newest last.
+
+        If date_str is given (YYYY-MM-DD), filter to that day only.
+        """
+        self._ensure_chat_history()
+        msgs = self._chat_history['messages']
+        if date_str:
+            msgs = [m for m in msgs if m['ts'].startswith(date_str)]
+        return msgs[-limit:]
+
+    def prune_old_chat(self, days_to_keep: int = None):
+        """Remove messages older than days_to_keep from the log."""
+        if days_to_keep is None:
+            days_to_keep = config.CHAT_HISTORY_KEEP_DAYS
+        self._ensure_chat_history()
+        from datetime import timedelta
+        cutoff = (datetime.now() - timedelta(days=days_to_keep)).isoformat()
+        before = len(self._chat_history['messages'])
+        self._chat_history['messages'] = [
+            m for m in self._chat_history['messages'] if m['ts'] >= cutoff
+        ]
+        if len(self._chat_history['messages']) < before:
+            self._save_json(config.CHAT_HISTORY_FILE, self._chat_history)
+
+    def reconcile_alarms(self) -> list[dict]:
+        """Called on startup. Marks past-due scheduled alarms as fired.
+        Returns list of future scheduled alarms that need rescheduling.
+        """
+        now = datetime.now()
+        future = []
+        changed = False
+        for alarm in self.alarms['alarms']:
+            if alarm['status'] != 'scheduled':
+                continue
+            try:
+                scheduled = datetime.fromisoformat(alarm['scheduled_for'])
+            except (ValueError, KeyError):
+                continue
+            if scheduled <= now:
+                alarm['status'] = 'fired'
+                changed = True
+            else:
+                future.append(alarm)
+        if changed:
+            self._save_json(config.ALARM_LOG_FILE, self.alarms)
+        return future

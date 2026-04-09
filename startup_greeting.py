@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.tts import TTS
 from tools.calendar import CalendarTool
+from tools.news import fetch_news_briefing
 
 TODO_FILE = Path.home() / ".local/share/calcurse/todo"
 
@@ -198,6 +199,14 @@ def build_greeting() -> str:
         greeting += " You've got 1 thing on your to-do list."
     elif pending_todos > 1:
         greeting += f" You've got {pending_todos} things on your to-do list."
+
+    # News briefing — fetch in background and append if successful
+    try:
+        news = fetch_news_briefing(limit_each=1)
+        if news:
+            greeting += f" {news}"
+    except Exception:
+        pass
 
     # The signature ending - warm but cheeky
     greeting += " Alright, let's make today a good one."

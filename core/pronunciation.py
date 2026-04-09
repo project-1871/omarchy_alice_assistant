@@ -2,6 +2,77 @@
 import re
 
 
+# Contractions to expand before TTS (apostrophes confuse the model)
+# Order matters: longer/specific matches first
+CONTRACTIONS = {
+    # Negatives
+    "won't": "will not",
+    "can't": "cannot",
+    "shan't": "shall not",
+    "shouldn't": "should not",
+    "wouldn't": "would not",
+    "couldn't": "could not",
+    "mustn't": "must not",
+    "mightn't": "might not",
+    "needn't": "need not",
+    "hadn't": "had not",
+    "hasn't": "has not",
+    "haven't": "have not",
+    "isn't": "is not",
+    "aren't": "are not",
+    "wasn't": "was not",
+    "weren't": "were not",
+    "doesn't": "does not",
+    "didn't": "did not",
+    "don't": "do not",
+    "ain't": "am not",
+    # Will
+    "I'll": "I will",
+    "you'll": "you will",
+    "he'll": "he will",
+    "she'll": "she will",
+    "it'll": "it will",
+    "we'll": "we will",
+    "they'll": "they will",
+    "that'll": "that will",
+    "who'll": "who will",
+    # Would / Had
+    "I'd": "I would",
+    "you'd": "you would",
+    "he'd": "he would",
+    "she'd": "she would",
+    "we'd": "we would",
+    "they'd": "they would",
+    "who'd": "who would",
+    # Have
+    "I've": "I have",
+    "you've": "you have",
+    "we've": "we have",
+    "they've": "they have",
+    "could've": "could have",
+    "would've": "would have",
+    "should've": "should have",
+    "might've": "might have",
+    "must've": "must have",
+    # Am / Are / Is
+    "I'm": "I am",
+    "you're": "you are",
+    "he's": "he is",
+    "she's": "she is",
+    "it's": "it is",
+    "we're": "we are",
+    "they're": "they are",
+    "that's": "that is",
+    "there's": "there is",
+    "here's": "here is",
+    "what's": "what is",
+    "who's": "who is",
+    "how's": "how is",
+    "where's": "where is",
+    "when's": "when is",
+    "let's": "let us",
+}
+
 # Names that need phonetic spelling for Piper/Alba
 # Add entries as: 'original': 'phonetic'
 NAMES = {
@@ -138,6 +209,14 @@ def preprocess(text: str) -> str:
     """Clean up text for better TTS pronunciation."""
     if not text:
         return text
+
+    # 0. Expand contractions (apostrophes confuse KittenTTS)
+    # Normalize curly apostrophes to straight first
+    text = text.replace('\u2019', "'").replace('\u2018', "'")
+    for contraction, expansion in CONTRACTIONS.items():
+        # Case-insensitive replacement, preserving original case flavor
+        pattern = r'\b' + re.escape(contraction) + r'\b'
+        text = re.sub(pattern, expansion, text, flags=re.IGNORECASE)
 
     # 1a. Normalize ellipsis variants to pause before symbol replacement
     text = re.sub(r'\.{2,}', ', ', text)  # ... or .... → pause

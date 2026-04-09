@@ -128,6 +128,11 @@ class LLM:
         response.raise_for_status()
         return response.json()['message']['content']
 
+    def switch_profile(self, profile: dict):
+        """Swap personality profile (work / chill). Saves original so teacher mode restore still works."""
+        self.system_prompt = profile['system_prompt']
+        config.OLLAMA_TEMPERATURE = profile['temperature']
+
     def set_teacher_mode(self, teacher_system_prompt: str):
         """Switch to teacher mode by replacing the system prompt.
 
@@ -138,6 +143,12 @@ class LLM:
         self.system_prompt = teacher_system_prompt
         # Teacher mode uses lower temperature for more reliable answers
         config.OLLAMA_TEMPERATURE = 0.4
+
+    def inject_history(self, role: str, text: str):
+        """Prepend a message to history (used to restore context from persistent log on startup)."""
+        self.history.append({'role': role, 'content': text})
+        if len(self.history) > 40:
+            self.history = self.history[-40:]
 
     def exit_teacher_mode(self):
         """Restore normal system prompt and temperature."""
@@ -160,6 +171,7 @@ class HermesLLM:
         self.session_id: str | None = None  # set after first message; in-memory only
         self._teacher_prompt: str | None = None
         self.activity_callback = None  # set by GUI to stream tool/status lines in real-time
+        self.active_profile: str = 'chill'  # 'chill' or 'work'
 
     # ── subprocess execution ─────────────────────────────────────────────────
 
@@ -186,7 +198,9 @@ class HermesLLM:
                 text=True,
             )
         except Exception as e:
-            return f"hermes error: {e}"
+            import traceback
+            traceback.print_exc()
+            return f"Couldn't start hermes: {e}"
 
         lines = []
         try:
@@ -200,7 +214,9 @@ class HermesLLM:
             proc.kill()
             return "Sorry babe, hermes timed out. Try again."
         except Exception as e:
-            return f"hermes error: {e}"
+            import traceback
+            traceback.print_exc()
+            return f"Hermes connection dropped: {e}"
 
         return self._parse('\n'.join(lines), save_session=not new_session)
 
@@ -241,8 +257,14 @@ class HermesLLM:
 
     # ── LLM interface (mirrors core/llm.py LLM) ─────────────────────────────
 
+    def switch_profile(self, profile: dict):
+        """Set active personality profile. Work mode prepends a focus hint to each message."""
+        self.active_profile = profile['label']
+
     def chat(self, message: str, context: str = None) -> str:
         """Send a message and get a response. Context is ignored — hermes has its own memory."""
+        if self.active_profile == 'work':
+            message = f"[Work mode — be focused, concise, minimal banter] {message}"
         return self._run(message)
 
     def generate(self, prompt: str, temperature: float = None) -> str:
@@ -259,6 +281,10 @@ class HermesLLM:
 
     def set_teacher_mode(self, teacher_system_prompt: str):
         self._teacher_prompt = teacher_system_prompt
+
+    def inject_history(self, role: str, text: str):
+        """No-op — hermes manages its own persistent memory."""
+        pass
 
     def exit_teacher_mode(self):
         self._teacher_prompt = None

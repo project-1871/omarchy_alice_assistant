@@ -1,4 +1,4 @@
-"""KittenTTS integration - expressive female voice."""
+"""Kokoro ONNX TTS — expressive American female voice (af_heart) + Cherry Honey FFmpeg FX."""
 import tempfile
 import os
 import re
@@ -6,25 +6,26 @@ import queue
 import subprocess
 import threading
 import sys
+import numpy as np
 sys.path.insert(0, '..')
 import config
 from core.pronunciation import preprocess
 
 
 class TTS:
-    """Text-to-speech using KittenTTS (StyleTTS2-based)."""
+    """Text-to-speech using Kokoro ONNX (kokoro-onnx package)."""
 
     def __init__(self):
-        self._model = None  # Lazy-loaded on first speak()
+        self._kokoro = None
 
-    def _get_model(self):
-        if self._model is None:
-            from kittentts import KittenTTS
-            self._model = KittenTTS(config.KITTEN_MODEL)
-        return self._model
+    def _get_kokoro(self):
+        if self._kokoro is None:
+            from kokoro_onnx import Kokoro
+            self._kokoro = Kokoro(config.KOKORO_MODEL, config.KOKORO_VOICES)
+        return self._kokoro
 
     def _apply_fx(self, in_path: str, out_path: str):
-        """Run FFmpeg post-processing filter chain (smokey rasp effect)."""
+        """Run FFmpeg Cherry Honey FX chain."""
         subprocess.run(
             ['ffmpeg', '-y', '-i', in_path, '-af', config.KITTEN_FX, out_path],
             capture_output=True
@@ -33,7 +34,6 @@ class TTS:
     def _split_sentences(self, text: str) -> list[str]:
         """Split text into sentences for pipelined generation."""
         parts = re.split(r'(?<=[.!?])\s+', text.strip())
-        # Merge very short fragments with the next one
         merged = []
         buf = ''
         for part in parts:
@@ -45,33 +45,40 @@ class TTS:
             merged.append(buf)
         return merged if merged else [text]
 
-    def _generate_chunk(self, text: str) -> tuple[str, str] | None:
-        """Generate audio for one sentence chunk. Returns (raw_path, fx_path) or None."""
+    def _generate_chunk(self, text: str) -> str | None:
+        """Generate audio for one sentence. Returns fx_path or None."""
         try:
-            model = self._get_model()
+            kokoro = self._get_kokoro()
+            samples, sample_rate = kokoro.create(
+                text,
+                voice=config.KOKORO_VOICE,
+                speed=config.KOKORO_SPEED,
+                lang=config.KOKORO_LANG,
+            )
+
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
                 raw_path = f.name
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
                 fx_path = f.name
-            model.generate_to_file(
-                text, raw_path,
-                voice=config.KITTEN_VOICE,
-                speed=config.KITTEN_SPEED,
-                sample_rate=config.KITTEN_SAMPLE_RATE
-            )
+
+            import soundfile as sf
+            sf.write(raw_path, samples, sample_rate)
             self._apply_fx(raw_path, fx_path)
             os.remove(raw_path)
             return fx_path
         except Exception:
+            import traceback
+            traceback.print_exc()
             return None
 
     def _play_file(self, fx_path: str):
-        """Play a processed WAV file via paplay."""
+        """Play processed WAV via paplay."""
         try:
             import soundfile as sf
             audio, _ = sf.read(fx_path, dtype='int16')
             paplay = subprocess.Popen(
-                ['paplay', '--raw', '--channels=1', f'--rate={config.KITTEN_SAMPLE_RATE}'],
+                ['paplay', f'--device={config.AUDIO_SINK}', '--raw',
+                 '--channels=1', f'--rate={config.KITTEN_SAMPLE_RATE}'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
@@ -86,29 +93,20 @@ class TTS:
                 pass
 
     def speak(self, text: str) -> bool:
-        """Speak text (blocking). Generates WAV, applies FX, plays with pw-play."""
         return self.speak_raw(text)
 
     def speak_raw(self, text: str) -> bool:
-        """Speak text with pipelined sentence generation.
-
-        Splits into sentences, generates the first one, starts playing it,
-        and generates the next one in parallel — so audio starts immediately
-        and there's no gap between sentences.
-        """
+        """Speak text with pipelined sentence generation+playback."""
         try:
             text = preprocess(text)
             sentences = self._split_sentences(text)
 
             if len(sentences) == 1:
-                # Short text — no need to pipeline
                 fx_path = self._generate_chunk(sentences[0])
                 if fx_path:
                     self._play_file(fx_path)
                 return True
 
-            # Pipeline: producer generates sentences into a queue,
-            # consumer plays them as they arrive.
             _DONE = object()
             audio_queue = queue.Queue(maxsize=2)
 
@@ -131,4 +129,6 @@ class TTS:
             prod.join()
             return True
         except Exception:
+            import traceback
+            traceback.print_exc()
             return False

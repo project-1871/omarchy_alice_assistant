@@ -98,6 +98,10 @@ class MainWindow(Gtk.ApplicationWindow):
         todo_page = self._build_todo_page()
         self.notebook.append_page(todo_page, Gtk.Label(label="To Do"))
 
+        # Tab 4: Messages (WhatsApp)
+        messages_page = self._build_messages_page()
+        self.notebook.append_page(messages_page, Gtk.Label(label="💬 Msg"))
+
         # Refresh data when switching tabs
         self.notebook.connect('switch-page', self._on_tab_switched)
 
@@ -114,6 +118,29 @@ class MainWindow(Gtk.ApplicationWindow):
             self._end_lesson()
         else:
             self._show_lesson_selector()
+
+    def _on_profile_toggle(self, widget):
+        """Toggle between work and chill profile."""
+        new_profile = 'work' if self.alice.active_profile == 'chill' else 'chill'
+        msg = self.alice.switch_profile(new_profile)
+        self.add_message(msg, is_system=True)
+
+    def _sync_profile_button(self, profile_name: str):
+        """Update profile button label and style to match current profile."""
+        import config as _cfg
+        from gi.repository import GLib
+        profile = _cfg.PROFILES.get(profile_name, _cfg.PROFILES['chill'])
+
+        def _update():
+            self.profile_button.set_label(profile['display'])
+            if profile_name == 'work':
+                self.profile_button.remove_css_class('toolbar-button')
+                self.profile_button.add_css_class('profile-button-work')
+            else:
+                self.profile_button.remove_css_class('profile-button-work')
+                self.profile_button.add_css_class('toolbar-button')
+
+        GLib.idle_add(_update)
 
     def _on_uncensored_toggle(self, widget):
         """Toggle between Claude (hermes) and dolphin-llama3 (uncensored local)."""
@@ -395,6 +422,17 @@ class MainWindow(Gtk.ApplicationWindow):
         self.knowledge_button.connect('clicked', self._on_add_knowledge)
         toolbar.append(self.knowledge_button)
 
+        # Profile toggle — Work / Chill
+        self.profile_button = Gtk.Button(label="😎 Chill")
+        self.profile_button.add_css_class('toolbar-button')
+        self.profile_button.set_tooltip_text("Toggle work/chill mode")
+        self.profile_button.connect('clicked', self._on_profile_toggle)
+        toolbar.append(self.profile_button)
+        # Sync button with Alice's current profile (restored from memory on init)
+        self._sync_profile_button(self.alice.active_profile)
+        # Register callback so voice commands update the button too
+        self.alice.profile_change_callback = self._sync_profile_button
+
         # Uncensored model toggle
         self.uncensored_button = Gtk.Button(label="Dolphin")
         self.uncensored_button.add_css_class('toolbar-button')
@@ -420,6 +458,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self.next_button.connect('clicked', self._on_next_section)
         self.next_button.set_visible(False)
         toolbar.append(self.next_button)
+
+        # Fullscreen voice mode button
+        fullscreen_btn = Gtk.Button(label="⛶")
+        fullscreen_btn.add_css_class('toolbar-button')
+        fullscreen_btn.set_tooltip_text("Voice-only fullscreen mode (F11)")
+        fullscreen_btn.connect('clicked', self._on_open_fullscreen)
+        toolbar.append(fullscreen_btn)
 
         # Start Lesson button
         self.lesson_button = Gtk.Button(label="Lesson")
@@ -465,23 +510,29 @@ class MainWindow(Gtk.ApplicationWindow):
         self.input_entry.add_css_class('input-entry')
         self.input_entry.connect('activate', self._on_send)
 
-        self.voice_button = Gtk.Button(label="F12")
+        self.voice_button = Gtk.Button(label="🎙")
         self.voice_button.add_css_class('voice-button')
         self.voice_button.set_tooltip_text("Voice input (F12)")
         self.voice_button.connect('clicked', self._on_voice_toggle)
 
-        self.tts_button = Gtk.Button(label="TTS")
+        self.type_button = Gtk.Button(label="⌨")
+        self.type_button.add_css_class('type-button')
+        self.type_button.set_tooltip_text("Focus text input (type mode)")
+        self.type_button.connect('clicked', self._on_type_toggle)
+
+        self.tts_button = Gtk.Button(label="🔊")
         self.tts_button.add_css_class('tts-button')
         self.tts_button.add_css_class('active')
         self.tts_button.set_tooltip_text("Toggle text-to-speech (Ctrl+T)")
         self.tts_button.connect('clicked', self._on_tts_toggle)
 
-        self.send_button = Gtk.Button(label="Send")
+        self.send_button = Gtk.Button(label="➤")
         self.send_button.add_css_class('send-button')
         self.send_button.connect('clicked', self._on_send)
 
         input_container.append(self.input_entry)
         input_container.append(self.voice_button)
+        input_container.append(self.type_button)
         input_container.append(self.tts_button)
         input_container.append(self.send_button)
 
@@ -981,6 +1032,319 @@ class MainWindow(Gtk.ApplicationWindow):
             self._load_calendar_events()
         elif page_num == 2:
             self._load_todo_items()
+        elif page_num == 3:
+            self._load_contacts()
+
+    # ──────────────────────────────────────────────
+    # Messages tab (WhatsApp)
+    # ──────────────────────────────────────────────
+
+    def _build_messages_page(self):
+        """Build the Messages (WhatsApp) tab."""
+        from tools.contacts import load as load_contacts_data
+        self._selected_contact = None
+
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        # ── Toolbar ──────────────────────────────
+        toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        toolbar.add_css_class('toolbar')
+        toolbar.set_margin_start(10)
+        toolbar.set_margin_end(10)
+        toolbar.set_margin_top(6)
+        toolbar.set_margin_bottom(6)
+
+        wa_label = Gtk.Label(label="📱 WhatsApp")
+        wa_label.add_css_class('msg-title-label')
+        toolbar.append(wa_label)
+
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        toolbar.append(spacer)
+
+        add_btn = Gtk.Button(label="+ Contact")
+        add_btn.add_css_class('toolbar-button')
+        add_btn.set_tooltip_text("Add a new contact")
+        add_btn.connect('clicked', self._on_add_contact)
+        toolbar.append(add_btn)
+
+        import_btn = Gtk.Button(label="⇩ Google")
+        import_btn.add_css_class('toolbar-button')
+        import_btn.set_tooltip_text("Import contacts from Google Contacts CSV\n(export from contacts.google.com → Export → Google CSV)")
+        import_btn.connect('clicked', self._on_import_google)
+        toolbar.append(import_btn)
+
+        page.append(toolbar)
+
+        # ── Contacts grid ─────────────────────────
+        contacts_scroll = Gtk.ScrolledWindow()
+        contacts_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        contacts_scroll.set_min_content_height(110)
+        contacts_scroll.set_max_content_height(110)
+
+        self._contacts_flow = Gtk.FlowBox()
+        self._contacts_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        self._contacts_flow.set_column_spacing(6)
+        self._contacts_flow.set_row_spacing(6)
+        self._contacts_flow.set_margin_start(10)
+        self._contacts_flow.set_margin_end(10)
+        self._contacts_flow.set_margin_top(6)
+        self._contacts_flow.set_margin_bottom(6)
+        self._contacts_flow.set_max_children_per_line(4)
+
+        contacts_scroll.set_child(self._contacts_flow)
+        page.append(contacts_scroll)
+
+        # ── Separator ─────────────────────────────
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        page.append(sep)
+
+        # ── Compose area ──────────────────────────
+        compose_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        compose_box.set_margin_start(10)
+        compose_box.set_margin_end(10)
+        compose_box.set_margin_top(8)
+        compose_box.set_margin_bottom(4)
+
+        self._compose_to_label = Gtk.Label(label="← Select a contact above")
+        self._compose_to_label.add_css_class('compose-to-label')
+        self._compose_to_label.set_xalign(0)
+        compose_box.append(self._compose_to_label)
+
+        self._compose_entry = Gtk.Entry()
+        self._compose_entry.set_placeholder_text("Type your message...")
+        self._compose_entry.set_hexpand(True)
+        self._compose_entry.add_css_class('compose-entry')
+        self._compose_entry.connect('activate', self._on_compose_send)
+        compose_box.append(self._compose_entry)
+
+        send_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        self._wa_send_btn = Gtk.Button(label="📱 Send WhatsApp")
+        self._wa_send_btn.add_css_class('wa-send-button')
+        self._wa_send_btn.set_hexpand(True)
+        self._wa_send_btn.set_sensitive(False)
+        self._wa_send_btn.connect('clicked', self._on_compose_send)
+        send_row.append(self._wa_send_btn)
+
+        compose_box.append(send_row)
+        page.append(compose_box)
+
+        # ── Quick messages ────────────────────────
+        sep2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep2.set_margin_top(4)
+        page.append(sep2)
+
+        quick_label = Gtk.Label(label="Quick messages")
+        quick_label.add_css_class('quick-label')
+        quick_label.set_xalign(0)
+        quick_label.set_margin_start(10)
+        quick_label.set_margin_top(6)
+        page.append(quick_label)
+
+        quick_scroll = Gtk.ScrolledWindow()
+        quick_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        quick_scroll.set_vexpand(True)
+
+        self._quick_flow = Gtk.FlowBox()
+        self._quick_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        self._quick_flow.set_column_spacing(6)
+        self._quick_flow.set_row_spacing(6)
+        self._quick_flow.set_margin_start(10)
+        self._quick_flow.set_margin_end(10)
+        self._quick_flow.set_margin_top(4)
+        self._quick_flow.set_margin_bottom(8)
+        self._quick_flow.set_max_children_per_line(2)
+
+        quick_scroll.set_child(self._quick_flow)
+        page.append(quick_scroll)
+
+        # ── Status label ──────────────────────────
+        self._msg_status_label = Gtk.Label(label="")
+        self._msg_status_label.add_css_class('msg-status-label')
+        self._msg_status_label.set_margin_bottom(6)
+        page.append(self._msg_status_label)
+
+        # Populate
+        self._load_contacts()
+        return page
+
+    def _load_contacts(self):
+        """Reload contacts and quick messages from file."""
+        from tools.contacts import load as load_contacts_data
+        try:
+            data = load_contacts_data()
+        except Exception:
+            return
+
+        # Clear and rebuild contact buttons
+        while self._contacts_flow.get_child_at_index(0):
+            self._contacts_flow.remove(self._contacts_flow.get_child_at_index(0))
+
+        for contact in data.get("contacts", []):
+            name  = contact.get("name", "?")
+            emoji = contact.get("emoji", "👤")
+            wa    = contact.get("whatsapp", "")
+
+            btn = Gtk.Button(label=f"{emoji}\n{name}")
+            btn.add_css_class('contact-button')
+            btn.set_tooltip_text(f"WhatsApp: +{wa}")
+            btn.connect('clicked', self._on_contact_selected, contact)
+            self._contacts_flow.append(btn)
+
+        # Clear and rebuild quick message buttons
+        while self._quick_flow.get_child_at_index(0):
+            self._quick_flow.remove(self._quick_flow.get_child_at_index(0))
+
+        for msg in data.get("quick_messages", []):
+            btn = Gtk.Button(label=msg)
+            btn.add_css_class('quick-msg-button')
+            btn.connect('clicked', self._on_quick_message, msg)
+            self._quick_flow.append(btn)
+
+    def _on_contact_selected(self, widget, contact):
+        """Select a contact for composing."""
+        self._selected_contact = contact
+        name  = contact.get("name", "?")
+        emoji = contact.get("emoji", "👤")
+        wa    = contact.get("whatsapp", "")
+        self._compose_to_label.set_label(f"To: {emoji} {name}  (+{wa})")
+        self._compose_to_label.add_css_class('compose-to-active')
+        self._wa_send_btn.set_sensitive(True)
+        self._compose_entry.grab_focus()
+        self._msg_status_label.set_label("")
+
+        # Highlight selected button
+        child = self._contacts_flow.get_child_at_index(0)
+        idx = 0
+        while child:
+            btn = child.get_child()
+            if btn:
+                if btn.get_label() == f"{emoji}\n{name}":
+                    btn.add_css_class('contact-button-selected')
+                else:
+                    btn.remove_css_class('contact-button-selected')
+            idx += 1
+            child = self._contacts_flow.get_child_at_index(idx)
+
+    def _on_quick_message(self, widget, msg):
+        """Fill compose entry with quick message text."""
+        self._compose_entry.set_text(msg)
+        self._compose_entry.grab_focus()
+        # Move cursor to end
+        self._compose_entry.set_position(len(msg))
+
+    def _on_compose_send(self, widget):
+        """Send the composed WhatsApp message."""
+        if not self._selected_contact:
+            self._msg_status_label.set_label("⚠ Select a contact first")
+            return
+        msg = self._compose_entry.get_text().strip()
+        if not msg:
+            self._msg_status_label.set_label("⚠ Type a message first")
+            return
+
+        import json, subprocess
+        wa    = self._selected_contact.get("whatsapp", "")
+        name  = self._selected_contact.get("name", "?")
+        chat_id = f"{wa}@c.us"
+        payload = json.dumps({"chatId": chat_id, "message": msg})
+
+        try:
+            result = subprocess.run(
+                ["curl", "-sf", "-X", "POST",
+                 "-H", "Content-Type: application/json",
+                 "-d", payload,
+                 "http://localhost:3000/send"],
+                capture_output=True, text=True, timeout=10
+            )
+            resp = json.loads(result.stdout)
+            if resp.get("success"):
+                self._msg_status_label.set_label(f"✅ Sent to {name}")
+                self._compose_entry.set_text("")
+            else:
+                self._msg_status_label.set_label(f"❌ Failed: {resp.get('error', 'unknown')}")
+        except Exception as e:
+            self._msg_status_label.set_label(f"❌ Error: {e}")
+
+    def _on_add_contact(self, widget):
+        """Show add contact dialog."""
+        win = Gtk.Window(title="Add Contact")
+        win.set_transient_for(self)
+        win.set_modal(True)
+        win.set_default_size(320, 200)
+        win.set_resizable(False)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.set_margin_top(16)
+        box.set_margin_bottom(16)
+        box.set_margin_start(16)
+        box.set_margin_end(16)
+        win.set_child(box)
+
+        name_entry = Gtk.Entry()
+        name_entry.set_placeholder_text("Name (e.g. Bea)")
+        box.append(name_entry)
+
+        phone_entry = Gtk.Entry()
+        phone_entry.set_placeholder_text("WhatsApp number (e.g. 34679205712)")
+        box.append(phone_entry)
+
+        emoji_entry = Gtk.Entry()
+        emoji_entry.set_placeholder_text("Emoji (e.g. ❤️)  — optional")
+        box.append(emoji_entry)
+
+        btn_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        btn_row.set_halign(Gtk.Align.END)
+        box.append(btn_row)
+
+        cancel = Gtk.Button(label="Cancel")
+        cancel.connect('clicked', lambda _: win.destroy())
+        btn_row.append(cancel)
+
+        save_btn = Gtk.Button(label="Add")
+        save_btn.add_css_class('suggested-action')
+        btn_row.append(save_btn)
+
+        def on_save(_):
+            from tools.contacts import add_contact
+            name  = name_entry.get_text().strip()
+            phone = phone_entry.get_text().strip().replace("+", "").replace(" ", "")
+            emoji = emoji_entry.get_text().strip() or "👤"
+            if name and phone:
+                add_contact(name, phone, emoji)
+                self._load_contacts()
+                win.destroy()
+
+        save_btn.connect('clicked', on_save)
+        win.present()
+
+    def _on_import_google(self, widget):
+        """Import contacts from Google CSV file."""
+        dialog = Gtk.FileChooserNative(
+            title="Select Google Contacts CSV",
+            transient_for=self,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        f = Gtk.FileFilter()
+        f.set_name("CSV files")
+        f.add_pattern("*.csv")
+        dialog.add_filter(f)
+
+        def on_response(d, response):
+            if response == Gtk.ResponseType.ACCEPT:
+                path = d.get_file().get_path()
+                from tools.contacts import import_google_csv
+                try:
+                    n = import_google_csv(path)
+                    self._load_contacts()
+                    self._msg_status_label.set_label(f"✅ Imported {n} contacts from Google")
+                except Exception as e:
+                    self._msg_status_label.set_label(f"❌ Import failed: {e}")
+            d.destroy()
+
+        dialog.connect('response', on_response)
+        dialog.show()
 
     # ──────────────────────────────────────────────
     # Chat functionality (unchanged)
@@ -1007,6 +1371,19 @@ class MainWindow(Gtk.ApplicationWindow):
         action_cancel.connect("activate", lambda a, p: self._on_cancel_recording())
         self.add_action(action_cancel)
         self.app.set_accels_for_action("win.cancel-recording", ["Escape"])
+
+        action_fullscreen = Gio.SimpleAction.new("voice-fullscreen", None)
+        action_fullscreen.connect("activate", lambda a, p: self._on_open_fullscreen(None))
+        self.add_action(action_fullscreen)
+        self.app.set_accels_for_action("win.voice-fullscreen", ["F11"])
+
+    # ── Voice fullscreen ──────────────────────────────────────────────────────
+
+    def _on_open_fullscreen(self, widget):
+        """Launch the voice-only fullscreen window."""
+        from gui.fullscreen import VoiceFullscreenWindow
+        fs = VoiceFullscreenWindow(alice=self.alice, parent=self)
+        fs.present()
 
     # ── Hermes activity (live tool/status streaming) ─────────────────────────
 
@@ -1121,7 +1498,8 @@ class MainWindow(Gtk.ApplicationWindow):
             else:
                 self._update_lesson_status()
 
-        if self.tts_enabled and answer and not getattr(self.alice.llm, 'handles_tts', False):
+        force_speak = response.get('speak', False)
+        if self.tts_enabled and answer and (force_speak or not getattr(self.alice.llm, 'handles_tts', False)):
             self.alice.speak_async(answer)
 
         return False
@@ -1162,6 +1540,16 @@ class MainWindow(Gtk.ApplicationWindow):
             self.tts_button.add_css_class('active')
         else:
             self.tts_button.remove_css_class('active')
+
+    def _on_type_toggle(self, widget):
+        """Focus the text input and highlight it (type mode)."""
+        self.input_entry.grab_focus()
+        if self.type_button.has_css_class('type-button-active'):
+            self.type_button.remove_css_class('type-button-active')
+            self.input_entry.remove_css_class('input-entry-active')
+        else:
+            self.type_button.add_css_class('type-button-active')
+            self.input_entry.add_css_class('input-entry-active')
 
     def _on_clear(self):
         """Clear chat history."""

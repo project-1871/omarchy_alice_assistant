@@ -5,7 +5,7 @@ All phases implemented. Teacher mode for web hacking lessons added and fixed.
 Packaged for distribution at `~/alice-install/`
 
 ### Bug fixes applied 2026-03-17
-- **Start Lesson button did nothing**: GTK 4.20 broke `Gtk.Dialog` response signal. Replaced lesson selector with a plain `Gtk.Window` + explicit button handlers in `gui/window.py`. NOTE: todo editor and doc loader dialogs use same broken `Gtk.Dialog` pattern — fix those too if they break.
+- **Start Lesson button did nothing**: GTK 4.20 broke `Gtk.Dialog` response signal. Replaced lesson selector with a plain `Gtk.Window` + explicit button handlers in `gui/window.py`. All other dialogs (todo editor, doc loader, calendar, knowledge) also fixed on 2026-03-23 — see GTK 4.20 Dialog Fixes section below.
 - **"next" didn't advance sections**: `TeacherSession.phase` starts as `'intro'` but advance check required `'teaching'`. Fixed in `alice.py` `_process_teacher_message()` — now handles `'intro'` phase explicitly and transitions to `'teaching'` on first "next".
 - **TTS long delay**: entire response generated before audio played. Fixed in `core/tts.py` — now splits into sentences and pipelines generation+playback (sentence 1 plays while sentence 2 generates).
 - **Window expands off screen**: `ScrolledWindow` was propagating natural height. Fixed in `gui/window.py`: added `set_propagate_natural_height(False)` + `set_min_content_height(200)`. Also fixed `Gtk.WrapMode` → `Pango.WrapMode.WORD_CHAR` (was silently broken).
@@ -13,15 +13,17 @@ Packaged for distribution at `~/alice-install/`
 
 ---
 
-## Project Status: ✅ COMPLETE + TEACHER MODE (2026-03-17) + HERMES PHASE 3 (2026-03-23) + HERMES PHASE 6 (2026-03-24)
+## Project Status: ✅ COMPLETE + TEACHER MODE (2026-03-17) + HERMES PHASE 3 (2026-03-23) + HERMES PHASE 6 (2026-03-24) + HARDENING (2026-03-25) + ALARM PERSISTENCE (2026-03-25)
 Phase 3-6: hermes memory merged in, Uncensored/Dolphin button added, all broken Gtk.Dialog buttons fixed, Gateway WhatsApp integration, activity stream.
-Latest (2026-03-24): Synced dotfiles to GitHub with current system config. Alice assistant packaged and ready for distribution.
+Hardening (2026-03-25): Error surfacing in process()/tts/llm, proactive calendar reminder watcher, tools/cli.py single-source dispatch, hermes skill sync notes, junk file cleanup.
+Alarm Persistence (2026-03-25): alarm_log.json tracks every alarm/timer (status: scheduled/fired/cancelled). On restart, Alice reconciles past alarms and reschedules future ones. "What alarms do I have" / "cancel timer" now work. Duration double-count bug fixed.
 
 ---
 
 ## CRITICAL: Voice Configuration
-**NEVER change the TTS voice from `expr-voice-4-f` (KittenTTS expressive female)**
+**NEVER change the TTS voice from `af_heart` (Kokoro ONNX American female)**
 Glenn specifically chose this voice. It's perfect. Don't touch it.
+TTS engine is now Kokoro ONNX — NOT KittenTTS. Model files are local in the project dir.
 
 ---
 
@@ -46,15 +48,17 @@ Glenn specifically chose this voice. It's perfect. Don't touch it.
 - ROCm/HIP does NOT work on this setup. Vulkan is the only GPU path.
 
 ### TTS
-- **Engine**: KittenTTS (StyleTTS2-based, loads once into Python memory — no subprocess per utterance)
-- **Model**: `KittenML/kitten-tts-mini-0.8` (cached to `~/.cache/huggingface/`)
-- **Voice**: `expr-voice-4-f` (NEVER CHANGE)
-- **Speed**: `KITTEN_SPEED = 1.2` (1.0 = normal)
+- **Engine**: Kokoro ONNX (`kokoro-onnx` package, v0.5.0) — higher quality, more expressive than old KittenTTS
+- **Model**: `kokoro-v1.0.onnx` (311MB, stored at `~/alice-assistant/kokoro-v1.0.onnx`)
+- **Voices**: `voices-v1.0.bin` (27MB, stored at `~/alice-assistant/voices-v1.0.bin`)
+- **Voice**: `af_heart` — American female, warm + expressive (set in `config.py` as `KOKORO_VOICE`)
+- **Speed**: `KOKORO_SPEED = 1.05` (1.0 = normal)
 - **Sample rate**: 24000 Hz
-- **FX**: FFmpeg Tara Reid style — pitch -2 semitones (asetrate=21400), acrusher grit, EQ warmth+presence, subtle echo
-- **Preloading**: TTS model is preloaded in a background thread on GUI launch to eliminate the startup gap (see `alice.py` `preload()` and `gui/window.py`)
-- **Sentence pauses**: `pronunciation.py` inserts `, ` after sentence-ending periods for a natural breath between sentences
-- **Pipelined playback**: `core/tts.py` splits responses into sentences — sentence 1 plays while sentence 2 is generating. First audio starts much sooner on long responses. Uses a producer/consumer queue in `speak_raw()`.
+- **FX**: FFmpeg Cherry Honey style — pitch +1 semitone (asetrate=22800), acrusher bits=10 (heavy rasp), EQ 300Hz warmth / 2500Hz presence / 8kHz air, 20ms echo
+- **Preloading**: TTS model is preloaded in a background thread on GUI launch (see `alice.py` `preload()`)
+- **Sentence pauses**: `pronunciation.py` inserts `, ` after sentence-ending periods for a natural breath
+- **Pipelined playback**: `core/tts.py` splits responses into sentences — sentence 1 plays while sentence 2 is generating. Uses a producer/consumer queue in `speak_raw()`.
+- **Contraction fix**: `pronunciation.py` now expands contractions (what's→what is, don't→do not, etc.) before TTS — no more garbled apostrophes
 
 ### STT
 - **Engine**: faster-whisper
@@ -116,6 +120,30 @@ pip install -r requirements.txt
 | Web Search | `tools/websearch.py` | DuckDuckGo web search |
 | Weather | `tools/weather.py` | Current weather and forecasts (Open-Meteo) |
 | System | `tools/system.py` | CPU, RAM, disk usage stats |
+| System Health | `tools/system_health.py` | Full health check: OS, hardware, disk space, SMART drive health, filesystem errors, services. Requires `smartmontools` for SMART data (`sudo pacman -S smartmontools`). |
+| Gmail | `tools/gmail.py` | Read/send Gmail via IMAP/SMTP + App Password. Triggers: "any new emails", "read my emails", "send email to X saying Y", "emails from X". Credentials in `config.py`. |
+| WhatsApp | `tools/whatsapp.py` | Send WhatsApp messages via hermes-gateway (localhost:3000). Contacts: Bea (34679205712), Glenn/me (34722556031). Triggers: "send whatsapp to bea saying X", "message bea", "text bea", etc. Add contacts in CONTACTS dict. |
+| Contacts | `tools/contacts.py` | Manage contacts in `~/.alice_contacts.json`. add_contact(), import_google_csv(path). Used by Messages tab GUI. |
+
+## Local RAG (added 2026-03-28)
+
+Semantic document search using ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`).
+Automatically injects relevant doc chunks into every LLM query context — no user action needed.
+
+### How it works
+- `core/rag.py` — RAGEngine class, loads in background thread on Alice startup
+- Model: `all-MiniLM-L6-v2` (80MB, CPU, cached at `~/.cache/huggingface/`)
+- DB: ChromaDB persistent at `memory/chroma/` — 297 chunks from 51 docs
+- Ready in ~24s (model cached), ~60s first run (downloads model)
+- `alice.py` `_build_context(query)` — passes current query to RAG, injects top 4 chunks
+- `core/memory.py` `store_doc()` — auto-indexes any new doc added via voice/GUI
+- Config: `RAG_DB_DIR`, `RAG_DOCS_DIR` in `config.py`
+- New deps: `chromadb>=0.5.0`, `sentence-transformers>=3.0.0`
+
+### Tested queries
+- "how do I change wallpaper" → omarchy_backgrounds (dist 0.554) ✅
+- "keyboard shortcut switch workspace" → omarchy_hotkeys (dist 0.418) ✅
+- "autostart applications" → hyprland_autostart (dist 0.443) ✅
 | Calculator | `tools/calculator.py` | Math, percentages, unit conversions |
 | Dictionary | `tools/dictionary.py` | Definitions and synonyms |
 | OS Help | `tools/oshelp.py` | Omarchy/Hyprland docs (offline) |
@@ -203,7 +231,7 @@ Greeting includes:
 | `startup_greeting.py` | Boot greeting |
 | `install.sh` | Automated installer |
 | `core/llm.py` | Ollama integration |
-| `core/tts.py` | KittenTTS |
+| `core/tts.py` | Kokoro ONNX TTS (af_heart voice, Cherry Honey FX) |
 | `core/stt.py` | Whisper STT |
 | `core/memory.py` | Persistent memory + document ingestion |
 | `core/pronunciation.py` | Text preprocessing for TTS (abbreviations, pauses, symbols) |
@@ -289,7 +317,7 @@ Alice is:
 - Heavily raunchy — swears constantly as natural baseline
 - Helpful but not sycophantic
 - Efficient - no fluff
-- Expressive female voice (KittenTTS expr-voice-4-f)
+- Expressive female voice (Kokoro ONNX af_heart)
 
 Sign-off: *"So Glenn, what are you trying to fuck up today?"*
 
@@ -401,10 +429,21 @@ Fixed:
 Removed dead handlers: `_on_event_dialog_response`, `_on_knowledge_dialog_response`, `_on_knowledge_file_selected`, `_on_reference_file_selected`.
 
 ## Future Enhancements (Not Yet Implemented)
-- [ ] Code review tool (file/diff handling)
-- [ ] Email integration
+- [x] Code review tool — alice.py _handle_code_review(); sources: file path, git diff, clipboard; LLM prompt with bug/security/quality checklist (2026-03-26)
+- [x] Email integration — Gmail IMAP read + SMTP send via App Password (2026-03-29)
 - [ ] Smart home control
+- [ ] Agent autonomy (background hermes tasks, reports back)
+- [x] Local RAG — ChromaDB + all-MiniLM-L6-v2, 297 chunks/51 docs, auto-injected into every LLM call (2026-03-28)
+- [ ] HackBoy ESP32 hardware integration
+- [x] Alarm persistence — alarm_log.json, reschedule on restart, list/cancel by voice (2026-03-25)
+- [x] Persistent chat history — rolling JSON log, context restored on restart, voice query (2026-03-26)
+- [x] Git status briefing — tools/git.py, scans ~/500G/my_aps_&_projects + known repos (2026-03-26)
+- [x] Clipboard awareness — tools/clipboard.py + alice.py _handle_clipboard_query(); read/summarize/explain/translate (2026-03-26)
+- [x] RSS news feed — tools/news.py; hacking, microcontrollers, Linux, war/world; injected into startup_greeting.py (2026-03-26)
+- [x] Screen awareness — tools/screen.py + alice.py _handle_screen_query(); grim screenshot → hermes vision; bypasses tool router (2026-03-26)
+- [x] Voice-only fullscreen mode — gui/fullscreen.py VoiceFullscreenWindow; SPACE=record, ESC=exit, pulsing dot states; F11 shortcut + ⛶ toolbar button (2026-03-26)
+- [x] Multi-session profiles — work/chill toggle; config.py PROFILES dict; alice.py switch_profile(); 💼/😎 toolbar button; voice triggers; persists in context.json (2026-03-26)
 
 ---
 
-*Last updated: 2026-03-17*
+*Last updated: 2026-04-07*

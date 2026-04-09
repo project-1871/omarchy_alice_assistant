@@ -17,14 +17,12 @@ def alice_is_running() -> bool:
     """Check if Alice's GUI process is alive."""
     try:
         import subprocess
-        for pattern in ['alice-assistant', 'alice_assistant', 'main.py']:
-            result = subprocess.run(
-                ['pgrep', '-f', pattern],
-                capture_output=True
-            )
-            if result.returncode == 0:
-                return True
-        return False
+        # Must match a python process running main.py inside the alice directory specifically
+        result = subprocess.run(
+            ['pgrep', '-f', f'python.*{ALICE_DIR}/main\\.py'],
+            capture_output=True
+        )
+        return result.returncode == 0
     except Exception:
         return False
 
